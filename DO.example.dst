@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Parameters ------------------------------------------------------
+
+# --- MultiWOZ 2.1 dataset (noisy data)
+TRAIN_TASK="multiwoz21"
+TRAIN_DATA_DIR="data/multiwoz/data/MultiWOZ_2.1"
+# --- MultiWOZ 2.4 dataset (cleaned data, uses legacy format)
+TEST_TASK="multiwoz21_legacy"
+TEST_DATA_DIR="data/MultiWOZ2.4/data/MULTIWOZ2.4"
+
+# Project paths etc. ----------------------------------------------
+
+DATASET_CONFIG="trippy/dataset_config/multiwoz21.json"
+OUT_DIR=results
+mkdir -p ${OUT_DIR}
+
+# Main ------------------------------------------------------------
+
+for step in train dev test; do
+    args_add=""
+    if [ "$step" = "train" ]; then
+	TASK=${TRAIN_TASK}
+	DATA_DIR=${TRAIN_DATA_DIR}
+	args_add="--do_train"
+    elif [ "$step" = "dev" ] || [ "$step" = "test" ]; then
+	TASK=${TEST_TASK}
+	DATA_DIR=${TEST_DATA_DIR}
+	args_add="--do_eval"
+    fi
+
+    python3 ${TOOLS_DIR}/storm_dst.py \
+	    --task_name=${TASK} \
+	    --model_type="roberta" \
+	    --model_name_or_path="roberta-base" \
+	    --dataset_config=${DATASET_CONFIG} \
+	    --data_dir=${DATA_DIR} \
+	    --predict_type=${step} \
+	    --do_lower_case \
+	    --learning_rate=1e-4 \
+	    --num_train_epochs=10 \
+	    --max_seq_length=180 \
+	    --train_batch_size=48 \
+	    --eval_batch_size=48 \
+	    --output_dir=${OUT_DIR} \
+	    --eval_all_checkpoints \
+	    --save_epochs=1 \
+	    --warmup_proportion=0.1 \
+	    --local_files_only \
+	    --optimizer="Adam" \
+	    ${args_add} \
+	    2>&1 | tee ${OUT_DIR}.${x}/${step}.log
+
+    if [ "$step" = "dev" ] || [ "$step" = "test" ]; then
+	python3 trippy/metric_dst.py \
+		--dataset_config=${DATASET_CONFIG} \
+		--file_list="${OUT_DIR}/pred_res.${step}*json" \
+		2>&1 | tee ${OUT_DIR}/eval_pred_${step}.log
+    fi
+done

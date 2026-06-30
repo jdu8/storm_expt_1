@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Parameters ------------------------------------------------------
+
+# --- CoLA dataset
+#TASK="cola"
+#DATA_DIR="data/glue_data/CoLA"
+# --- MRPC dataset
+#TASK="mrpc"
+#DATA_DIR="data/glue_data/MRPC"
+# --- RTE dataset
+#TASK="rte"
+#DATA_DIR="data/glue_data/RTE"
+
+# Project paths etc. ----------------------------------------------
+
+OUT_DIR=results
+mkdir -p ${OUT_DIR}
+
+# Main ------------------------------------------------------------
+
+python3 storm.py \
+	--task_name=${TASK} \
+	--train_file=${DATA_DIR}/train_corrupt_30.tsv \
+	--validation_file=${DATA_DIR}/valid.tsv \
+	--test_file=${DATA_DIR}/test.tsv \
+	--model_type="roberta" \
+	--model_name_or_path="roberta-base" \
+	--train_batch_size=32 \
+	--eval_batch_size=32 \
+	--learning_rate=5e-2 \
+	--num_train_epochs=10 \
+	--output_dir=${OUT_DIR} \
+	--local_files_only \
+	--evaluate_rescaling \
+	--save_checkpoints \
+	--save_stats \
+	2>&1 | tee ${OUT_DIR}/train.log
